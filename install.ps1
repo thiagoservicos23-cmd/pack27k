@@ -11,7 +11,7 @@ Write-Host "=================================================" -ForegroundColor 
 Write-Host "[1/3] Baixando arquivos da nuvem..." -ForegroundColor Yellow
 
 # --- VERIFIQUE SE ESTE LINK ESTÁ CORRETO NO SEU VERCEL ---
-$baseUrl = "https://pack27k.vercel.app"
+$baseUrl = "https://packultimate.vercel.app"
 
 try {
     # Downloads básicos
